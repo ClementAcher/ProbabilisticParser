@@ -12,6 +12,8 @@ EmbeddingContainer = namedtuple('EmbeddingContainer',
 class OOVHandler:
 
     UNK_TOKEN = '<UNK>'
+    NPP_TOKEN = '<NPP>'
+    DIGITS = re.compile("[0-9]", re.UNICODE)
 
     def __init__(self, vocabulary, polyglot_data_path):
         self.vocabulary = vocabulary
@@ -37,7 +39,7 @@ class OOVHandler:
             vocabulary_in_lexicon, embeddings[vocabulary_idx],
             vocabulary_word_id, vocabulary_id_word)
 
-    def find_close_word_in_vocabulary(self, word, max_dist=2):
+    def find_close_word(self, word, max_dist=2):
         """
         Returns a word that is in the available vocabulary.
 
@@ -55,8 +57,8 @@ class OOVHandler:
             return word
 
         # Check if the word is in in the polyglot list of words
-        not_a_typo = word in self.all_embeddings.words
-        if not_a_typo:
+        word_in_embeddings, word = self._is_in_embeddings(word)
+        if word_in_embeddings:
             word_idx = self.all_embeddings.word_id[word]
             idx_in_voc = self._l2_nearest_in_voc(word_idx)
             return idx_in_voc
@@ -72,7 +74,28 @@ class OOVHandler:
             if dist_dict[dist]:
                 return dist_dict[dist][0]
 
+        if word[0].isupper():
+            return self.NPP_TOKEN
+
         return self.UNK_TOKEN
+
+    def _is_in_embeddings(self, word):
+        if word in self.all_embeddings.words:
+            return True, word
+
+        if not word in self.all_embeddings.words:
+            word = self.DIGITS.sub("#", word)
+
+        if word in self.all_embeddings.words:
+            return True, word
+        if word.lower() in self.all_embeddings.words:
+            return True, word.lower()
+        if word.upper() in self.all_embeddings.words:
+            return True, word.upper()
+        if word.title() in self.all_embeddings.words:
+            return True, word.title()
+
+        return False, word
 
     def _l2_nearest_in_voc(self, word_index, k=5):
         """
