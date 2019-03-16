@@ -1,14 +1,22 @@
-import numpy as np
-from nltk.tree import Tree
-
-from collections import defaultdict, namedtuple
 import re
+from collections import defaultdict, namedtuple
 from itertools import product
 
+import numpy as np
+from nltk.tree import Tree
+from nltk.grammar import Nonterminal
+
+from .oov import OOVHandler
 
 UNARY_JOIN_CHAR = '&'
 
 def clean_tag(tree):
+    """
+    Remove functional tags from a tree.
+
+    Args:
+    - tree (nltk.Tree)
+    """
     regex_cleaner = re.compile(r'(-)\w+')
     tree.set_label(regex_cleaner.sub('', tree.label()))
     for child in tree:
@@ -20,6 +28,10 @@ Rule = namedtuple('Rule', ['lhs', 'rhs'])
 
 
 class Parser:
+    """
+    Helper to extract the rules from the dataset file
+    """
+
     def __init__(self, filepath):
         with open(filepath, 'r') as f:
             self.lines = f.readlines()
@@ -28,7 +40,7 @@ class Parser:
     def _extract_rules(self, lines):
         rules = []
         for word in lines:
-            tree = Tree.fromstring(word)[0]
+            tree = Tree.fromstring(word, remove_empty_top_bracketing=True)
             clean_tag(tree)
             tree.chomsky_normal_form()
             tree.collapse_unary(collapseRoot=True, collapsePOS=True,
@@ -53,6 +65,8 @@ class PCFG:
         self.rev_grammar_proba = defaultdict(dict)
         self.rev_lexicon_proba = defaultdict(dict)
 
+        self.oov_handler = None
+
     def _count_to_proba(self, count_dict, total_count_dict):
         """
         Returns a dict containing log(proba) from a count dicts
@@ -69,7 +83,8 @@ class PCFG:
             proba_dict[rule] = np.log(count / total_count_dict[rule.lhs])
         return proba_dict
 
-    def fill_pcfg_from_file(self, filepath):
+    def fill_pcfg_from_file(self, filepath,
+                            polyglot_path='./data/polyglot-fr.pkl'):
         """
         Fill the PCFG class from a training dataset.
 
@@ -93,15 +108,41 @@ class PCFG:
                 lhs_grammar_count[rule.lhs()] += 1
 
         self.grammar_proba = self._count_to_proba(grammar_count,
-                                                 lhs_grammar_count)
+                                                  lhs_grammar_count)
         self.lexicon_proba = self._count_to_proba(lexicon_count,
-                                                 lhs_lexicon_count)
+                                                  lhs_lexicon_count)
 
+        self._add_NPP_token()
+        self._add_UNK_token(lhs_lexicon_count)
+
+        # Reverse the lexicon and grammar dict
         for rule, proba in self.grammar_proba.items():
             self.rev_grammar_proba[rule.rhs][rule.lhs] = proba
 
         for rule, proba in self.lexicon_proba.items():
             self.rev_lexicon_proba[rule.rhs][rule.lhs] = proba
+
+        self.oov_handler = OOVHandler(self.terminals, polyglot_path)
+
+    def _add_NPP_token(self):
+        """
+        Add <NPP> token for OOV words that are probably a proper noun.
+        """
+        # TODO Des problèmes encore avec ce token
+        self.lexicon_proba[Rule('NPP', OOVHandler.NPP_TOKEN)] = 0
+
+    def _add_UNK_token(self, lhs_lexicon_count):
+        """
+        For OOV words that we could not identify, use the probabilities of the
+        most likely POS tags.
+        """
+        top_tags = [
+            Nonterminal(t) for t in ['NC', 'DET', 'P', 'AP&ADJ', 'ADV', 'V']
+            ]
+        total_count = sum([lhs_lexicon_count[tag] for tag in top_tags])
+        for tag in top_tags:
+            log_proba = np.log(lhs_lexicon_count[tag] / total_count)
+            self.lexicon_proba[Rule(tag, OOVHandler.UNK_TOKEN)] = log_proba
 
     def probabilitic_CKY(self, words):
         """
@@ -120,7 +161,9 @@ class PCFG:
         back = dict()
 
         for j in range(1, len(words) + 1):
-            for A, proba in self.rev_lexicon_proba[words[j-1]].items():
+
+            word_in_voc = self.oov_handler.find_close_word(words[j-1])
+            for A, proba in self.rev_lexicon_proba[word_in_voc].items():
                 proba_table[(j - 1, j, A)] = proba
                 table[(j - 1, j)].append(A)
 
