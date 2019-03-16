@@ -1,4 +1,5 @@
 from os.path import join
+import re
 
 import numpy as np
 
@@ -7,9 +8,20 @@ TRAIN_DATASET_SIZE = 0.8
 DEV_DATASET_SIZE = 0.1
 TEST_DATASET_SIZE = 0.1
 
-DATASET_NAMES = ['train.txt', 'dev.txt', 'test.txt']
+DATASET_NAMES = ['train', 'dev', 'test']
 DATA_PATH = './../data/'
 
+# regex to extract string in the most inner parenthesis
+INNER_PARENTHESIS = re.compile(r'\(([^()]+)\)')
+
+def tree_to_sentence(line):
+    """Get the sequence of token from a treebank sample"""
+    matchs = INNER_PARENTHESIS.findall(line)
+    term_tags = []
+    for match in matchs:
+        non_term, term = match.split()
+        term_tags.append(term)
+    return ' '.join(term_tags) + '\n'
 
 def split_dataset(dataset_path):
     with open(dataset_path, 'r') as f:
@@ -21,8 +33,10 @@ def split_dataset(dataset_path):
     datasets = np.split(dataset, (train_idx, dev_idx))
 
     for split_ds, name in zip(datasets, DATASET_NAMES):
-        with open(join(DATA_PATH, name), 'w') as f:
+        with open(join(DATA_PATH, '{}.tag'.format(name)), 'w') as f:
             f.writelines(split_ds)
+        with open(join(DATA_PATH, '{}.no_tag'.format(name)), 'w') as f:
+            f.writelines([tree_to_sentence(line) for line in split_ds])
 
     return True
 
