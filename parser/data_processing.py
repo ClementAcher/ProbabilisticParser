@@ -17,9 +17,11 @@ INNER_PARENTHESIS = re.compile(r'\(([^()]+)\)')
 def tree_to_sentence(line):
     """Get the sequence of token from a treebank sample"""
     matchs = INNER_PARENTHESIS.findall(line)
+    regex_cleaner = re.compile(r'(-)\w+')
     term_tags = []
     for match in matchs:
         non_term, term = match.split()
+        non_term = regex_cleaner.sub('', non_term)
         term_tags.append(term)
     return ' '.join(term_tags) + '\n'
 
@@ -40,4 +42,6 @@ def split_dataset(dataset_path):
 
     return True
 
-split_dataset('./../data/sequoia-corpus+fct.mrg_strict')
+
+if __name__ == '__main__':
+    split_dataset('./../data/sequoia-corpus+fct.mrg_strict')

@@ -112,7 +112,7 @@ class PCFG:
         self.lexicon_proba = self._count_to_proba(lexicon_count,
                                                   lhs_lexicon_count)
 
-        self._add_NPP_token()
+        self._add_NPP_token(lhs_lexicon_count)
         self._add_UNK_token(lhs_lexicon_count)
 
         # Reverse the lexicon and grammar dict
@@ -124,12 +124,17 @@ class PCFG:
 
         self.oov_handler = OOVHandler(self.terminals, polyglot_path)
 
-    def _add_NPP_token(self):
+    def _add_NPP_token(self, lhs_lexicon_count):
         """
         Add <NPP> token for OOV words that are probably a proper noun.
         """
-        # TODO Des problèmes encore avec ce token
-        self.lexicon_proba[Rule('NPP', OOVHandler.NPP_TOKEN)] = 0
+        possible_tags = [
+            Nonterminal(t) for t in ['NPP', UNARY_JOIN_CHAR.join(['NP', 'NPP'])]
+            ]
+        total_count = sum([lhs_lexicon_count[tag] for tag in possible_tags])
+        for tag in possible_tags:
+            log_proba = np.log(lhs_lexicon_count[tag] / total_count)
+            self.lexicon_proba[Rule(tag, OOVHandler.NPP_TOKEN)] = log_proba
 
     def _add_UNK_token(self, lhs_lexicon_count):
         """
@@ -137,7 +142,7 @@ class PCFG:
         most likely POS tags.
         """
         top_tags = [
-            Nonterminal(t) for t in ['NC', 'DET', 'P', 'AP&ADJ', 'ADV', 'V']
+            Nonterminal(t) for t in ['NC', 'DET', 'P', 'AP&ADJ', 'ADV', 'V', 'VPP', 'VPR']
             ]
         total_count = sum([lhs_lexicon_count[tag] for tag in top_tags])
         for tag in top_tags:
@@ -160,8 +165,12 @@ class PCFG:
         table = defaultdict(list)
         back = dict()
 
-        for j in range(1, len(words) + 1):
+        if len(words) == 1:
+            word_in_voc = self.oov_handler.find_close_word(words[0])
+            for A, proba in self.rev_lexicon_proba[word_in_voc].items():
+                proba_table[(0, 1, A)] = proba
 
+        for j in range(1, len(words) + 1):
             word_in_voc = self.oov_handler.find_close_word(words[j-1])
             for A, proba in self.rev_lexicon_proba[word_in_voc].items():
                 proba_table[(j - 1, j, A)] = proba
@@ -195,6 +204,19 @@ class PCFG:
             tree = None
 
         return parsable, tree
+
+    def _single_word(self, words):
+        proba_table = defaultdict(lambda: -np.inf)
+        table = defaultdict(list)
+        back = dict()
+
+        if len(words) == 1:
+            word_in_voc = self.oov_handler.find_close_word(words[0])
+            for A, proba in self.rev_lexicon_proba[word_in_voc].items():
+                proba_table[(0, 1, A)] = proba
+
+        return proba_table
+
 
     def _build_tree(self, words, back, i, j, node):
         """

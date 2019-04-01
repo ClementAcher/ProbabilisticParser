@@ -99,7 +99,7 @@ class OOVHandler:
 
     def _l2_nearest_in_voc(self, word_index, k=5):
         """
-        Return t
+        Return the nearest word available in the vocabulary
         """
         word_embedding = self.all_embeddings.embeddings[word_index]
         distances = ((self.vocabulary_embeddings.embeddings - word_embedding)
@@ -141,3 +141,4 @@ def levenshtein_distance(s1, s2, early_stopping=None):
             d[i, j] = min(d[i - 1, j] + 1, d[i, j - 1] + 1,
                           d[i - 1, j - 1] + cost)
     return d[-1, -1]
+
