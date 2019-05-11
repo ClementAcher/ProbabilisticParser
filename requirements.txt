@@ -1,3 +1,4 @@
-tqdm==4.28.1
 numpy==1.15.4
 nltk==3.3
+tqdm==4.28.1
+click==6.7
