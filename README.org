@@ -1,0 +1,77 @@
+* Probabilistic parser
+
+The goal of this project is to build a probabilistic parser for French that is
+based on the [[https://en.wikipedia.org/wiki/CYK_algorithm][CYK algorithm]] and the [[https://en.wikipedia.org/wiki/Probabilistic_context-free_grammar][Probabilistic Context Free Grammar]] model. The
+parser should also be robust to unknown words.
+
+The grammar is built using the Sequoia French treebank [1]. To make the parser
+more robust and deal with out-of-vocabulary words, the Polyglot French
+embeddings [2] are used as well.
+
+** Setup
+
+The code has been tested for Python 3. Dependencies are listed in the
+=requirements.txt= file.
+
+Before running the parser, the training set should be parsed and the Polyglot
+embeddings downloaded. To do so, you can simply run these two lines in a shell. 
+
+#+BEGIN_SRC sh
+  python parser/data_processing.py data/sequoia-corpus+fct.mrg_strict --output_folder ./data
+  wget -O ./data/polyglot-fr.pkl http://bit.ly/19bSmJm # polyglot data
+#+END_SRC
+
+Polyglot embeddings can also be found on the [[https://sites.google.com/site/rmyeid/projects/polyglot][project website]] (pick the French
+embeddings and add them to the =data= folder.)
+
+** Parsing
+
+You can either parse sentence from the standard input or from a file.
+
+*** From the standard input
+
+
+#+BEGIN_SRC sh
+python main.py parse_from_std $'Je regarde les baleines .' --pprint
+#+END_SRC
+
+
+Should output something like this.
+#+BEGIN_SRC
+                      SENT
+                   ____|__________________
+                VPinf                     |
+      ____________|_________              |
+     VN                     NP            |
+  ___|_____             ____|_____        |
+CLS        V          DET         NC    PONCT
+ |         |           |          |       |
+ Je     regarde       les      baleines   .
+#+END_SRC
+
+Multiple sentences can be parsed separating them by =\n=. Note that bash escapes
+by default =\= when in a string, so you may need to use =$= before your string :
+=python main.py parse_from_std $'sentence_1 \n sentence_2'=.
+
+*** From file
+
+The file =example.txt= contains an example : 
+
+#+BEGIN_SRC sh
+python main.py parse_from_file example.txt
+cat results.txt
+#+END_SRC
+
+** Evaluation
+
+The parser can be evaluated using [[https://nlp.cs.nyu.edu/evalb/][evalb]]. You can check the report for some
+quantitative results and analysis of the work done.
+
+#+BEGIN_QUOTE
+[1] M. Candito, G. Perrier, B. Guillaume, C. Ribeyre, K. Fort, and D. Seddah,
+“Deep Syntax Annotation of the Sequoia French Treebank,” p. 9.
+
+[2] R. Al-Rfou, B. Perozzi, and S. Skiena, “Polyglot: Distributed Word
+Representations for Multilingual NLP,” p. 10.
+#+END_QUOTE
+
