@@ -20,10 +20,15 @@ def main():
     type=click.Path(),
     default=path.join(SCRIPT_PATH, './data/train.tag'),
     help='Path to the training dataset.')
+@click.option(
+    '--polyglot_path',
+    type=click.Path(),
+    default=path.join(SCRIPT_PATH, './data/polyglot-fr.pkl'),
+    help='Path to the polyglot embeddings.')
 @click.option('--pprint', is_flag=True, help='Pretty print the result.')
-def parse_from_std(lines_to_parse, training_set_path, pprint):
+def parse_from_std(lines_to_parse, training_set_path, polyglot_path, pprint):
     pcfg = PCFG()
-    pcfg.fill_pcfg_from_file(training_set_path)
+    pcfg.fill_pcfg_from_file(training_set_path, polyglot_path)
     print('Trained PCFG')
 
     parsed_tree_generator = generate_parsed_tree(pcfg,
@@ -50,9 +55,14 @@ def parse_from_std(lines_to_parse, training_set_path, pprint):
     type=click.File(mode='w'),
     default='results.txt',
     help='Where to put the results.')
-def parse_from_file(input_file, output_file, training_set_path):
+@click.option(
+    '--polyglot_path',
+    type=click.Path(),
+    default=path.join(SCRIPT_PATH, './data/polyglot-fr.pkl'),
+    help='Path to the polyglot embeddings.')
+def parse_from_file(input_file, output_file, polyglot_path, training_set_path):
     pcfg = PCFG()
-    pcfg.fill_pcfg_from_file(training_set_path)
+    pcfg.fill_pcfg_from_file(training_set_path, polyglot_path)
     print('Trained PCFG')
 
     parsed_tree_generator = generate_parsed_tree(pcfg, input_file)

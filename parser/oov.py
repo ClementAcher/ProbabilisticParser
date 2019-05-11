@@ -107,6 +107,7 @@ class OOVHandler:
         sorted_distances = sorted(enumerate(distances), key=itemgetter(1))
         return self.vocabulary_embeddings.id_word[sorted_distances[0][0]]
 
+
 def levenshtein_distance(s1, s2, early_stopping=None):
     """
     Compute the Levenshtein distance between two strings
@@ -141,4 +142,3 @@ def levenshtein_distance(s1, s2, early_stopping=None):
             d[i, j] = min(d[i - 1, j] + 1, d[i, j - 1] + 1,
                           d[i - 1, j - 1] + cost)
     return d[-1, -1]
-
